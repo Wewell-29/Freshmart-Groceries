@@ -1,4 +1,7 @@
+from flask import Flask, request, jsonify
 from db_connection import connect_db
+
+app = Flask(__name__)
 
 def create_table():
     conn = connect_db()
@@ -19,64 +22,42 @@ def create_table():
     conn.commit()
     conn.close()
 
-def insert_employee(full_name, dob, address, phone, email, emergency_name, emergency_phone, emergency_relationship):
-    conn = connect_db()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO employees (full_name, date_of_birth, address, phone_number, email, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (full_name, dob, address, phone, email, emergency_name, emergency_phone, emergency_relationship))
-        conn.commit()
-        print("✅ Employee added successfully!")
-    except sqlite3.IntegrityError:
-        print("❌ Error: Email already exists!")
-    conn.close()
-
+@app.route('/employees', methods=['GET'])
 def fetch_all_employees():
     conn = connect_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM employees")
     employees = cursor.fetchall()
     conn.close()
-    return employees  # Ensure this returns data
+    return jsonify(employees)
 
-from employee_service import fetch_all_employees
-
-employees = fetch_all_employees()
-
-if not employees:
-    print("No employees found.")
-else:
-    for emp in employees:
-        print(emp)  # Ensure output is printed
-
-
-def update_employee(email, new_phone, new_address):
-    conn = connect_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM employees WHERE email = ?", (email,))
-    employee = cursor.fetchone()
-
-    if employee:  # If employee exists, update the info
+@app.route('/employee', methods=['POST'])
+def insert_employee():
+    data = request.json
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
         cursor.execute("""
-            UPDATE employees 
-            SET phone_number = ?, address = ? 
-            WHERE email = ?
-        """, (new_phone, new_address, email))
-        
+            INSERT INTO employees (full_name, date_of_birth, address, phone_number, email, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (data['full_name'], data['date_of_birth'], data['address'], data['phone_number'], 
+              data['email'], data['emergency_contact_name'], data['emergency_contact_phone'], 
+              data['emergency_contact_relationship']))
         conn.commit()
-        print("✅ Update successful!")
-    else:
-        print("❌ Error: Employee not found!")
+        conn.close()
+        return jsonify({"message": "Employee added successfully!"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
-    conn.close()
-
-
+@app.route('/employee/<email>', methods=['DELETE'])
 def delete_employee(email):
     conn = connect_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM employees WHERE email = ?", (email,))
     conn.commit()
     conn.close()
+    return jsonify({"message": "Employee deleted successfully!"})
+
+if __name__ == '__main__':
+    create_table()
+    app.run(host='0.0.0.0', port=5000, debug=True)

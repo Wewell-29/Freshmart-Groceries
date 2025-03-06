@@ -1,34 +1,38 @@
-require('dotenv').config()
+require('dotenv').config();
 
-const express = require('express')
+const express = require('express');
 
-//Services
-const productServices = require('./routes/inventory-route')
-const posServices = require('./routes/pos-routes')
-const authService = require('./routes/auth-routes')
+// Initialize the app
+const app = express();
 
-//request mapper
-const mapper = '/api/v1'
+// Request mapper
+const mapper = '/api/v1';
 
-//init app
-const app = express()
+// Middleware
+app.use(express.json());
+app.use((req, res, next) => {
+    console.log(req.path, req.method);
+    next();
+});
 
-//middleware
-app.use(express.json())
-app.use((req, res, next) =>{
-    console.log(req.path, req.method)
-    next()
-})
+// Services
+const productServices = require('./routes/inventory-route');
+const posServices = require('./routes/pos-routes');
+const authService = require('./routes/auth-routes');
+const employeeService = require('./routes/employee-route'); // Ensure this file exists
 
-app.listen(process.env.PORT, () =>{
-    console.log(`Listening to port ${process.env.PORT}`)
-})
+// Register routes
+app.use(`${mapper}/employees`, employeeService);
+app.use(`${mapper}/inventory`, productServices);
+app.use(`${mapper}/pos`, posServices);
+app.use(`${mapper}/auth`, authService);
 
-app.use(`${mapper}/inventory`, productServices)
-app.use(`${mapper}/pos`, posServices)
-app.use(`${mapper}/auth`, authService)
+// Start server
+app.listen(process.env.PORT, () => {
+    console.log(`Listening to port ${process.env.PORT}`);
+});
 
-//if no request match
-app.use((req, res) =>{
-    res.status(404).json({error: 'No such endpoint exists'})
-})
+// Handle invalid routes
+app.use((req, res) => {
+    res.status(404).json({ error: 'No such endpoint exists' });
+});
